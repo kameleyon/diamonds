@@ -45,3 +45,10 @@ next-env.d.ts
 
 # local env
 .env*.local
+
+# runtime data: bet log, ratings, collected results
+.data/
+
+# review screenshots
+/*.png
+.playwright-mcp/

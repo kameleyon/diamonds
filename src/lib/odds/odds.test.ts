@@ -293,6 +293,6 @@ describe("closing line value", () => {
   });
 
   it("handles an empty history", () => {
-    expect(summarizeClv([]).verdict).toMatch(/No bets logged/);
+    expect(summarizeClv([]).verdict).toMatch(/No closing prices recorded/);
   });
 });

@@ -1,26 +1,89 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/**
+ * Slate and chalk.
+ *
+ * Bookmakers chalked prices onto slate boards, and "chalk" still means the
+ * favourite. The whole palette follows from that: a deep petrol-slate ground,
+ * bone text, and one warm chalk yellow that is reserved exclusively for value.
+ * If something is not an edge, it is not chalk-coloured.
+ */
+
+@theme {
+  --color-slate-ground: #0e1719;
+  --color-slate-raised: #142023;
+  --color-slate-rule: #1f2f32;
+  --color-slate-rule-strong: #2b4044;
+
+  --color-bone: #dce6e4;
+  --color-bone-dim: #93a5a3;
+  --color-bone-faint: #62777a;
+
+  /* Value. Used for positive edge and nothing else. */
+  --color-chalk: #e8c547;
+  --color-chalk-dim: #8a7529;
+
+  /* Warnings and losses. */
+  --color-brick: #c4574d;
+  --color-brick-dim: #6d332e;
+
+  /* Structural accent: confirmations, active states, the ladder's fair mark. */
+  --color-verdigris: #4b9c97;
+  --color-verdigris-dim: #2b5b58;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-slate-ground);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  /* Numerals must line up column to column across every table in the app. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every number in this app is data, so it is always tabular and always mono. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Keyboard focus must stay obvious against a dark ground. */
+:focus-visible {
+  outline: 2px solid var(--color-verdigris);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--color-chalk);
+  color: var(--color-slate-ground);
+}
+
+/* A faint chalk-dust texture on the ground, so the dark is a surface rather
+   than an absence. Cheap, static, and invisible until you look for it. */
+.slate-grain {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(220, 230, 228, 0.035) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

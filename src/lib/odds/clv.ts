@@ -113,7 +113,9 @@ export function summarizeClv(results: ClvResult[]): ClvSummary {
       averageClvPercent: 0,
       averageEvVsClose: null,
       tStatistic: null,
-      verdict: "No bets logged yet.",
+      // This summary only ever sees bets that have a closing price attached, so
+      // an empty input means closes are missing -- not that nothing was bet.
+      verdict: "No closing prices recorded yet. Without them there is no way to tell skill from luck.",
     };
   }
 
