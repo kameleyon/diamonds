@@ -1,6 +1,7 @@
 import type { Opportunity } from "@/lib/engine/edge";
 import { ValueLadder, LadderLegend } from "./value-ladder";
 import { LogBetButton } from "./log-bet-button";
+import { ExplainButton } from "./explain-button";
 import { pct, signedPct, money, american, kickoff, timeUntil, marketLabel, matchup } from "@/lib/display";
 
 /**
@@ -121,6 +122,7 @@ function Row({ o }: { o: Opportunity }) {
         <div className="num text-[13.5px] text-bone">{money(o.stake.amount)}</div>
         <div className="num mt-0.5 text-[11px] text-bone-faint">{pct(o.stake.fraction, 2)}</div>
         <LogBetButton opportunity={o} />
+        <ExplainButton opportunity={o} />
         {hasNotes && (
           <details className="mt-1.5 text-right">
             <summary className="cursor-pointer list-none text-[11px] text-brick hover:text-bone-dim">
