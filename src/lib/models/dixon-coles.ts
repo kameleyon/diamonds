@@ -170,13 +170,103 @@ function negLogLikelihood(
 }
 
 /**
- * Fit by Adam on numerically-estimated gradients.
+ * Analytic gradient of the negative weighted log-likelihood.
  *
- * Numerical gradients are chosen deliberately over hand-derived analytic ones:
- * the tau term makes the analytic derivative fiddly and easy to get subtly
- * wrong, and a subtly wrong gradient produces a model that converges
- * confidently to the wrong answer. With ~40 parameters and a few hundred
- * matches this is fast enough that the trade is clearly worth it.
+ * One pass over the matches produces every partial derivative, instead of the
+ * `2 * dim + 1` passes a central-difference estimate needs. On a 20-team league
+ * that is an ~85x reduction in work per iteration, which is the difference
+ * between a fit that finishes in a second and one that does not finish at all.
+ *
+ * Derivation. For one match with weight w, goals (x, y):
+ *
+ *   dLL/dlambda = w * [ (1/tau) * dtau/dlambda + x/lambda - 1 ]
+ *   dLL/dmu     = w * [ (1/tau) * dtau/dmu     + y/mu     - 1 ]
+ *   dLL/drho    = w *   (1/tau) * dtau/drho
+ *
+ * and since lambda = exp(attack_h - defence_a + adv), mu = exp(attack_a - defence_h):
+ *
+ *   dlambda/d(attack_h) = lambda,  dlambda/d(defence_a) = -lambda,  dlambda/d(adv) = lambda
+ *   dmu/d(attack_a)     = mu,      dmu/d(defence_h)     = -mu
+ *
+ * tau is 1 with zero derivatives outside the four low-score cells, so the
+ * correction only contributes where it is actually defined.
+ *
+ * NOTE: `rates()` clamps lambda and mu into a sane range. A clamped rate has a
+ * true derivative of zero, which this does not special-case -- on real football
+ * scorelines the clamp never binds, and pretending otherwise would add a branch
+ * to the hot loop for a case that does not occur.
+ */
+function gradient(
+  v: number[],
+  matches: SoccerMatch[],
+  weights: number[],
+  n: number,
+  index: Map<string, number>,
+  out: number[],
+): void {
+  out.fill(0);
+  const rho = v[2 * n + 1];
+  const advIdx = 2 * n;
+  const rhoIdx = 2 * n + 1;
+
+  for (let m = 0; m < matches.length; m++) {
+    const match = matches[m];
+    const hi = index.get(match.homeId);
+    const ai = index.get(match.awayId);
+    if (hi === undefined || ai === undefined) continue;
+
+    const { lambda, mu } = rates(v, n, hi, ai);
+    const x = match.homeGoals;
+    const y = match.awayGoals;
+    const w = weights[m];
+
+    const t = tau(x, y, lambda, mu, rho);
+    if (t <= 1e-10) continue;
+
+    let dTauDLambda = 0;
+    let dTauDMu = 0;
+    let dTauDRho = 0;
+    if (x === 0 && y === 0) {
+      dTauDLambda = -mu * rho;
+      dTauDMu = -lambda * rho;
+      dTauDRho = -lambda * mu;
+    } else if (x === 0 && y === 1) {
+      dTauDLambda = rho;
+      dTauDRho = lambda;
+    } else if (x === 1 && y === 0) {
+      dTauDMu = rho;
+      dTauDRho = mu;
+    } else if (x === 1 && y === 1) {
+      dTauDRho = -1;
+    }
+
+    const invT = 1 / t;
+    const dLambda = w * (invT * dTauDLambda + x / lambda - 1);
+    const dMu = w * (invT * dTauDMu + y / mu - 1);
+
+    // Chain through the exponential link.
+    const gl = dLambda * lambda;
+    const gm = dMu * mu;
+
+    // Accumulate the NEGATIVE log-likelihood gradient, which is what Adam
+    // descends.
+    out[hi] -= gl;
+    out[n + ai] += gl;
+    out[advIdx] -= gl;
+    out[ai] -= gm;
+    out[n + hi] += gm;
+    out[rhoIdx] -= w * invT * dTauDRho;
+  }
+}
+
+/**
+ * Fit by Adam on analytic gradients.
+ *
+ * A wrong gradient produces a model that converges confidently to the wrong
+ * answer with no visible symptom, which is why the parameter-recovery test in
+ * `models.test.ts` matters more than any other test here: it generates matches
+ * from known attack/defence values and asserts the fit recovers them. That test
+ * is what makes a hand-derived gradient safe to rely on.
  */
 export function fitDixonColes(
   matches: SoccerMatch[],
@@ -210,23 +300,13 @@ export function fitDixonColes(
   const beta1 = 0.9;
   const beta2 = 0.999;
   const eps = 1e-8;
-  const h = 1e-5;
 
   let prev = negLogLikelihood(values, matches, weights, n, index);
   let converged = false;
   let iter = 0;
 
   for (iter = 1; iter <= maxIterations; iter++) {
-    // Central-difference gradient.
-    for (let i = 0; i < dim; i++) {
-      const original = values[i];
-      values[i] = original + h;
-      const up = negLogLikelihood(values, matches, weights, n, index);
-      values[i] = original - h;
-      const down = negLogLikelihood(values, matches, weights, n, index);
-      values[i] = original;
-      grad[i] = (up - down) / (2 * h);
-    }
+    gradient(values, matches, weights, n, index, grad);
 
     for (let i = 0; i < dim; i++) {
       mAdam[i] = beta1 * mAdam[i] + (1 - beta1) * grad[i];

@@ -100,28 +100,47 @@ function ModelRow({ state }: { state: ModelState }) {
         </ol>
       )}
 
-      {state.poisson && (
-        <div className="mt-3">
-          <p className="text-[11.5px] text-bone-faint">
-            home advantage{" "}
-            <span className="num text-bone-dim">{state.poisson.homeAdvantage.toFixed(3)}</span> ·
-            low-score correction{" "}
-            <span className="num text-bone-dim">{state.poisson.rho.toFixed(3)}</span> ·{" "}
-            {state.poisson.converged ? "converged" : "did not converge"}
+      {state.poissonByLeague && (
+        <div className="mt-3 space-y-3">
+          {Object.entries(state.poissonByLeague).map(([league, fit]) => (
+            <div key={league}>
+              <p className="text-[12px] text-bone-dim">
+                {league}{" "}
+                <span className="text-[11px] text-bone-faint">
+                  <span className="num">{fit.matchCount}</span> matches · home adv{" "}
+                  <span className="num">{fit.homeAdvantage.toFixed(2)}</span> · rho{" "}
+                  <span className="num">{fit.rho.toFixed(3)}</span> ·{" "}
+                  {fit.converged ? "converged" : "did not converge"}
+                </span>
+              </p>
+              <ol className="mt-1 flex flex-wrap gap-x-5 gap-y-1">
+                {strengthTable(fit)
+                  .slice(0, 6)
+                  .map((t) => (
+                    <li key={t.team} className="text-[11.5px] text-bone-faint">
+                      {t.team}{" "}
+                      <span className="num text-bone-dim">
+                        {t.net > 0 ? "+" : ""}
+                        {t.net.toFixed(2)}
+                      </span>
+                    </li>
+                  ))}
+              </ol>
+              {state.excludedByLeague?.[league]?.length ? (
+                <p className="mt-1 text-[11px] leading-snug text-bone-faint">
+                  excluded, too few matches to identify:{" "}
+                  {state.excludedByLeague[league].join(", ")}
+                </p>
+              ) : null}
+            </div>
+          ))}
+          <p className="max-w-[80ch] text-[11.5px] leading-relaxed text-bone-faint">
+            Excluded sides are almost always lower-division clubs met in domestic cups, or
+            exhibition teams, carrying the top-flight league label. A team with two appearances
+            has nothing anchoring its rating, so the optimiser is free to give it any value —
+            left in, such sides sort to the top of the table and read as the model&rsquo;s
+            strongest conviction.
           </p>
-          <ol className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
-            {strengthTable(state.poisson)
-              .slice(0, 8)
-              .map((t) => (
-                <li key={t.team} className="text-[12px] text-bone-dim">
-                  {t.team}{" "}
-                  <span className="num text-bone">
-                    {t.net > 0 ? "+" : ""}
-                    {t.net.toFixed(2)}
-                  </span>
-                </li>
-              ))}
-          </ol>
         </div>
       )}
     </section>

@@ -37,9 +37,13 @@ Demo mode uses hand-built prices and labels itself as such. It is opt-in only an
 | Variable | Required | What it does |
 |---|---|---|
 | `ODDS_API_KEY` | Yes | Live odds for every sport. Free tier is 500 credits/month. |
+| `BIGBALLS_API_KEY` | No | Historical results, which is what makes the models fittable. Free tier is 1,000 requests/day. |
 | `ANTHROPIC_API_KEY` | No | Written reads on individual opportunities. |
-| `API_SPORTS_KEY` | No | Richer stats for model fitting. |
 | `DATABASE_URL` | No | Not yet used; the ledger is file-backed. |
+
+Odds and results come from **different providers on purpose**. Big Balls has the deep result
+history the models need but puts bookmaker odds behind its Edge plan; The Odds API has the
+prices. Neither alone is enough.
 
 **Credits are the binding constraint.** The Odds API bills `markets × regions` per competition, so three markets across two regions costs six credits per league scanned. Every refresh reports what it spent, and `buildSlate` enforces a credit budget. Keep the sport selection tight.
 
@@ -72,9 +76,25 @@ A few properties worth knowing, all asserted in the test suite:
 ```bash
 npm run dev          # dev server
 npm test             # 66 tests over the odds maths, models and engine
+npm run backfill     # pull completed results into .data/ (resumable)
+npm run fit          # fit the models and print what converged
 npm run devig-demo   # how far the four devig methods disagree
 npm run build
 ```
+
+### Backfilling results
+
+`npm run backfill` walks backwards a day at a time and is safe to re-run — it resumes from a
+cursor rather than re-fetching. Three API quirks shape it, all found by probing and all silent
+if you get them wrong:
+
+- **`page` is ignored.** Pages 1, 2 and 3 of a query return identical rows, so a loop that pages
+  until a short result set spins until it exhausts its budget.
+- **`sport` or `league` can degrade the response** to a scores projection with no team names.
+  Baseball does this on every query. Omitting both returns full objects for all sports at once,
+  which is also ~5× cheaper.
+- **Without a date filter the list returns upcoming fixtures**, so a naive backfill collects zero
+  finished results and looks like a silent failure rather than a bug.
 
 ## Storage
 
@@ -82,7 +102,10 @@ The bet log, collected results and fitted ratings live in `.data/` as JSON. That
 
 ## Honest limitations
 
-- **The rating models are not fitted.** They accumulate from live scores over weeks and are useless until they do. The Model tab says exactly how far along each one is.
+- **Model quality varies by sport.** Soccer and MLB have enough history to fit; NFL and college football do not yet — run `npm run backfill` again to go further back. The Model tab states where each one stands.
+- **Tennis has no results source.** Big Balls does not cover tennis at all, so tennis ratings cannot be fitted from the current providers.
+- **Team names are not aliased.** The same club can appear under two spellings ("SV Elversberg" and "SV 07 Elversberg"), splitting its history. Both were excluded as thin here, but a longer backfill will need an alias table.
+- **Cup fixtures carry the league label.** Domestic cup matches against lower-division clubs are labelled with the top-flight league, so those clubs would otherwise be fitted as league members. Competitors with fewer than six appearances are dropped before fitting for exactly this reason — without it, Hull City topped the Premier League on a wildly unidentified parameter.
 - **There is no backtest harness yet.** Until there is, model weight should stay at zero.
 - **Player props are only available per-event**, which costs credits per fixture. Pull them selectively.
 - **MLB team Elo is a weak model** because the starting pitcher dominates a single game. Treat it as a prior, not a forecast.

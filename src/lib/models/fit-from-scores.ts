@@ -48,7 +48,19 @@ export interface ModelState {
   /** What is still needed before the output should be trusted. */
   requirement: string;
   ratings?: EloRating[];
-  poisson?: DixonColesParams;
+  /**
+   * Dixon-Coles fits, one per league.
+   *
+   * Never pooled across leagues. Attack and defence parameters are identified
+   * only through shared opponents, and leagues barely share any -- across the
+   * whole soccer dataset only the Champions League fixtures connect them. A
+   * pooled fit would put Bundesliga and MLS teams on one scale with almost no
+   * evidence linking them, and it costs ~40x more to compute because the
+   * numerical-gradient work grows with the square of the squad count.
+   */
+  poissonByLeague?: Record<string, DixonColesParams>;
+  /** Competitors dropped per league for having too few matches to identify. */
+  excludedByLeague?: Record<string, string[]>;
 }
 
 /**
@@ -122,6 +134,52 @@ export async function ingestScores(
   return { added, total: existing.length };
 }
 
+
+/**
+ * Drop competitors with too little evidence to be identified.
+ *
+ * A Dixon-Coles attack parameter is only pinned down by the matches that team
+ * actually played. A club appearing once or twice -- a cup entrant, a
+ * mislabelled fixture, a promoted side with a handful of games -- has almost
+ * nothing constraining it, so the optimiser is free to push its parameter
+ * anywhere. In practice it lands on absurd values: on the first real fit of
+ * this dataset, Hull City came out top of the Premier League on +7.76 against
+ * Arsenal's +1.39, purely because it had two matches.
+ *
+ * Those rows are not merely noisy, they are actively misleading: they sort to
+ * the top of a strength table and look like the model's strongest conviction.
+ * Removing them is what the data supports, so it is done before fitting and
+ * reported rather than hidden.
+ *
+ * Removal is iterative: dropping a team also removes its opponents' matches,
+ * which can push another team below the threshold.
+ */
+function dropThinCompetitors(
+  rows: StoredResult[],
+  minAppearances: number,
+): { kept: StoredResult[]; dropped: string[] } {
+  let current = rows;
+  const dropped = new Set<string>();
+
+  for (let pass = 0; pass < 10; pass++) {
+    const counts = new Map<string, number>();
+    for (const r of current) {
+      counts.set(r.homeTeam, (counts.get(r.homeTeam) ?? 0) + 1);
+      counts.set(r.awayTeam, (counts.get(r.awayTeam) ?? 0) + 1);
+    }
+
+    const thin = new Set(
+      [...counts.entries()].filter(([, c]) => c < minAppearances).map(([t]) => t),
+    );
+    if (thin.size === 0) break;
+
+    for (const t of thin) dropped.add(t);
+    current = current.filter((r) => !thin.has(r.homeTeam) && !thin.has(r.awayTeam));
+  }
+
+  return { kept: current, dropped: [...dropped].sort() };
+}
+
 /** Refit every sport from stored results and persist the ratings. */
 export async function refitAll(): Promise<ModelState[]> {
   const results = await loadResults();
@@ -153,18 +211,46 @@ export async function refitAll(): Promise<ModelState[]> {
     }
 
     if (spec.model === "dixon-coles") {
-      try {
-        const matches: SoccerMatch[] = mine.map((r) => ({
-          homeId: r.homeTeam,
-          awayId: r.awayTeam,
-          homeGoals: r.homeScore,
-          awayGoals: r.awayScore,
-          date: new Date(r.completedAt),
-        }));
-        base.poisson = fitDixonColes(matches);
-      } catch (err) {
-        base.requirement = `Fit failed: ${(err as Error).message}`;
+      const byLeague = new Map<string, StoredResult[]>();
+      for (const r of mine) {
+        const league = r.sportKey.split(":")[1] ?? r.sportKey;
+        if (!byLeague.has(league)) byLeague.set(league, []);
+        byLeague.get(league)!.push(r);
       }
+
+      const fits: Record<string, DixonColesParams> = {};
+      const excluded: Record<string, string[]> = {};
+      for (const [league, rows] of byLeague) {
+        // A league needs enough matches for every team to have been seen
+        // several times, or the fit is noise dressed up as parameters.
+        if (rows.length < 60) continue;
+
+        // Six appearances is roughly a third of a single-round-robin season --
+        // enough for a parameter to be anchored, low enough to keep genuine
+        // promoted sides in.
+        const { kept, dropped } = dropThinCompetitors(rows, 6);
+        if (dropped.length > 0) {
+          excluded[league] = dropped;
+        }
+        if (kept.length < 60) continue;
+
+        try {
+          const matches: SoccerMatch[] = kept.map((r) => ({
+            homeId: r.homeTeam,
+            awayId: r.awayTeam,
+            homeGoals: r.homeScore,
+            awayGoals: r.awayScore,
+            date: new Date(r.completedAt),
+          }));
+          // Analytic gradients made a fit cost milliseconds, so iterations are
+          // cheap: spend them rather than shipping a half-converged model.
+          fits[league] = fitDixonColes(matches, { maxIterations: 5000 });
+        } catch {
+          // One league failing to converge must not take the others down.
+        }
+      }
+      if (Object.keys(fits).length > 0) base.poissonByLeague = fits;
+      if (Object.keys(excluded).length > 0) base.excludedByLeague = excluded;
     } else {
       const elo = new EloModel(spec);
       const matchResults: MatchResult[] = mine.map((r) => ({

@@ -9,7 +9,7 @@
 
 export type ServiceKey =
   | "ODDS_API_KEY"
-  | "API_SPORTS_KEY"
+  | "BIGBALLS_API_KEY"
   | "ANTHROPIC_API_KEY"
   | "DATABASE_URL";
 
@@ -31,11 +31,11 @@ export const SERVICES: ServiceSpec[] = [
     required: true,
   },
   {
-    key: "API_SPORTS_KEY",
-    label: "API-Sports",
+    key: "BIGBALLS_API_KEY",
+    label: "Big Balls Sports Data",
     purpose:
-      "Team/player stats, results and fixtures used to fit the rating models. Without it, models fall back to odds-implied ratings only.",
-    signupUrl: "https://api-sports.io/",
+      "Historical results that make the rating models fittable, plus NFL injuries. Its odds are behind the Edge plan, so it does not replace the odds source.",
+    signupUrl: "https://bigballsdata.com/dashboard",
     required: false,
   },
   {
