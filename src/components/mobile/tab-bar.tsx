@@ -13,8 +13,8 @@ import { usePathname } from "next/navigation";
  * Hit targets are the full tab height (>=44px) rather than just the label.
  */
 const TABS = [
+  { href: "/check", label: "Check" },
   { href: "/board", label: "Board" },
-  { href: "/parlay", label: "Parlay" },
   { href: "/ledger", label: "Ledger" },
   { href: "/model", label: "Model" },
 ] as const;

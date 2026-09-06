@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0e1719; color: #dce6e4;
+           font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+           font-variant-numeric: tabular-nums; }
+    a { color: #e8c547; text-decoration: none; } a:hover { color: #dce6e4; }
+    .m { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+    .grain { background-image: radial-gradient(circle at 1px 1px, rgba(220,230,228,.035) 1px, transparent 0); background-size: 22px 22px; }
+  </style>
+</helmet>
+
+<div class="grain" style="width:1440px;height:900px;box-sizing:border-box;display:flex;flex-direction:column">
+
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #1f2f32">
+    <svg width="13" height="15" viewBox="0 0 13 15" fill="none" aria-hidden="true"><path d="M6.5 1L12 7.5L6.5 14L1 7.5L6.5 1Z" stroke="#dce6e4" stroke-width="1.3" stroke-linejoin="round"></path></svg>
+    <span style="font-size:15px;font-weight:600;letter-spacing:.14em;font-stretch:112%">DIAMONDS</span>
+  </div>
+
+  <div style="padding:44px 20px;display:flex;justify-content:center">
+    <div style="width:860px">
+
+      <!-- What was read, and how it was understood. Shown before the answer so a
+           misparse is obvious rather than buried under a confident verdict. -->
+      <div style="display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:1px solid #1f2f32">
+        <span class="m" style="font-size:15px;color:#62777a">Alabama o3.5 1U</span>
+        <span style="font-size:12px;color:#62777a">read as</span>
+        <span style="font-size:14px;color:#dce6e4">Alabama Crimson Tide · team total Over 3.5 · 1 unit</span>
+        <span style="margin-left:auto;font-size:12px;color:#4b9c97">edit</span>
+      </div>
+
+      <!-- The verdict. One word, at scale, then the reasoning. -->
+      <div style="margin-top:34px;display:flex;gap:52px">
+        <div style="width:330px;flex:none">
+          <div class="m" style="font-size:10px;letter-spacing:.18em;color:#62777a">VERDICT</div>
+          <div style="margin-top:12px;font-size:52px;line-height:.92;color:#c4574d">Pass</div>
+          <div class="m" style="margin-top:16px;font-size:26px;color:#c4574d">−4.6%</div>
+          <div style="margin-top:6px;font-size:12.5px;color:#62777a">expected return per unit staked</div>
+
+          <div style="margin-top:26px;padding-top:18px;border-top:1px solid #1f2f32">
+            <div style="display:flex;align-items:baseline;font-size:13px"><span style="color:#93a5a3">Your price</span><span class="m" style="margin-left:auto;color:#dce6e4">1.83</span></div>
+            <div style="margin-top:8px;display:flex;align-items:baseline;font-size:13px"><span style="color:#93a5a3">Needs to hit</span><span class="m" style="margin-left:auto;color:#dce6e4">54.6%</span></div>
+            <div style="margin-top:8px;display:flex;align-items:baseline;font-size:13px"><span style="color:#93a5a3">Sharp market says</span><span class="m" style="margin-left:auto;color:#4b9c97">52.1%</span></div>
+            <div style="margin-top:8px;display:flex;align-items:baseline;font-size:13px"><span style="color:#93a5a3">Best price anywhere</span><span class="m" style="margin-left:auto;color:#dce6e4">1.91 Pinnacle</span></div>
+          </div>
+        </div>
+
+        <div style="flex:1">
+          <!-- The ladder: the same instrument as the board, so the answer is
+               read the same way everywhere in the app. -->
+          <div style="position:relative;height:40px;margin-top:26px">
+            <span style="position:absolute;top:20px;left:0;right:0;height:1px;background:#2b4044"></span>
+            <span style="position:absolute;top:18px;left:41%;width:13%;height:5px;background:#c4574d"></span>
+            <span style="position:absolute;top:12px;left:41%;width:1px;height:17px;background:#4b9c97"></span>
+            <span style="position:absolute;top:16px;left:54%;width:9px;height:9px;margin-left:-4.5px;transform:rotate(45deg);background:#c4574d"></span>
+            <span class="m" style="position:absolute;top:0;left:41%;margin-left:-46px;font-size:11px;color:#4b9c97">52.1%</span>
+            <span class="m" style="position:absolute;top:0;left:54%;margin-left:8px;font-size:11px;color:#c4574d">54.6%</span>
+            <span style="position:absolute;bottom:0;left:41%;margin-left:-56px;font-size:10.5px;color:#62777a">fair value</span>
+            <span style="position:absolute;bottom:0;left:54%;margin-left:8px;font-size:10.5px;color:#62777a">what you need</span>
+          </div>
+
+          <p style="margin:28px 0 0;font-size:14px;line-height:1.65;color:#dce6e4">
+            The price asks you to be right more often than the sharp market thinks you will be.
+            That gap is the bookmaker's margin, and paying it is the ordinary cost of betting —
+            not a mispricing.
+          </p>
+          <p style="margin:14px 0 0;font-size:13px;line-height:1.65;color:#93a5a3">
+            Pinnacle is offering 1.91 on the same side. Taking 1.83 gives away 4% of the price
+            before the ball is kicked. If you want this bet, take it there instead.
+          </p>
+
+          <div style="margin-top:24px;padding-top:18px;border-top:1px solid #1f2f32">
+            <div style="font-size:11.5px;color:#62777a">Check before you decide</div>
+            <ul style="margin:9px 0 0;padding-left:16px;font-size:12.5px;line-height:1.75;color:#93a5a3">
+              <li>Whether the total is team-only or the full game — books label these alike.</li>
+              <li>Starting quarterback, which moves a team total more than any line adjustment.</li>
+            </ul>
+          </div>
+
+          <div style="margin-top:26px;display:flex;gap:10px">
+            <div style="border:1px solid #2b4044;color:#93a5a3;font-size:13px;padding:11px 18px">Log it anyway</div>
+            <div style="border:1px solid #2b4044;color:#93a5a3;font-size:13px;padding:11px 18px">Check another</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

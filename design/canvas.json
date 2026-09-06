@@ -1,0 +1,25 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",    "x": 0,    "y": 0,    "w": 1440, "h": 900 },
+    { "file": "Verdict.dc.html", "x": 1560, "y": 0,    "w": 1440, "h": 900 },
+    { "file": "Settled.dc.html", "x": 3120, "y": 0,    "w": 1440, "h": 900 },
+    { "file": "Mobile.dc.html",  "x": 0,    "y": 1060, "w": 390,  "h": 844 }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 520,
+      "y": 1060,
+      "w": 420,
+      "text": "Landing = one question: should you take this bet?\n\nPaste it (\"Alabama o3.5 1U\") or drop a slip screenshot. The engine prices it against the sharp market.\n\nBelow the fold, two facts only: how many edges today, and the best one."
+    },
+    {
+      "id": "settled-note",
+      "x": 3120,
+      "y": 960,
+      "w": 460,
+      "text": "The settled state answers TWO independent questions with equal weight: did it win, and should it have been bet.\n\nShowing only the result teaches that winning bets were good bets — the most expensive lesson to learn wrong. The quadrant makes \"won but shouldn't have\" an ordinary, named place to land."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

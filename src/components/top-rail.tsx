@@ -12,6 +12,7 @@ import { usePathname } from "next/navigation";
  * bar, not a header, and every pixel it takes is a pixel off the board.
  */
 const TABS = [
+  { href: "/check", label: "Check", hint: "Price a bet you are considering" },
   { href: "/board", label: "Board", hint: "Live mispriced lines" },
   { href: "/model", label: "Model", hint: "Forecasts by fixture" },
   { href: "/ledger", label: "Ledger", hint: "Bets, P&L and closing line value" },

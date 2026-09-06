@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #0e1719; color: #dce6e4;
+           font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+           font-variant-numeric: tabular-nums; }
+    a { color: #e8c547; text-decoration: none; } a:hover { color: #dce6e4; }
+    .m { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+    .grain { background-image: radial-gradient(circle at 1px 1px, rgba(220,230,228,.035) 1px, transparent 0); background-size: 22px 22px; }
+  </style>
+</helmet>
+
+<div class="grain" style="width:1440px;height:900px;box-sizing:border-box;display:flex;flex-direction:column">
+
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #1f2f32">
+    <svg width="13" height="15" viewBox="0 0 13 15" fill="none" aria-hidden="true"><path d="M6.5 1L12 7.5L6.5 14L1 7.5L6.5 1Z" stroke="#dce6e4" stroke-width="1.3" stroke-linejoin="round"></path></svg>
+    <span style="font-size:15px;font-weight:600;letter-spacing:.14em;font-stretch:112%">DIAMONDS</span>
+  </div>
+
+  <div style="padding:44px 20px;display:flex;justify-content:center">
+    <div style="width:900px">
+
+      <div style="display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:1px solid #1f2f32">
+        <span class="m" style="font-size:15px;color:#62777a">Alabama o3.5 1U</span>
+        <span style="font-size:12px;color:#62777a">read as</span>
+        <span style="font-size:14px;color:#dce6e4">Alabama · team total Over 3.5 · 1 unit · played 30 Aug</span>
+      </div>
+
+      <!--
+        The whole point of this screen.
+
+        Two INDEPENDENT questions, given equal weight: did it win, and should it
+        have been bet. Reporting only the result teaches that winning bets were
+        good bets, which is the single most expensive lesson a bettor can learn
+        wrong.
+      -->
+      <div style="margin-top:34px;display:flex;gap:0;border:1px solid #1f2f32">
+
+        <div style="flex:1;padding:26px 28px;border-right:1px solid #1f2f32">
+          <div class="m" style="font-size:10px;letter-spacing:.18em;color:#62777a">RESULT</div>
+          <div style="margin-top:12px;font-size:44px;line-height:.95;color:#e8c547">Won</div>
+          <div class="m" style="margin-top:12px;font-size:18px;color:#e8c547">+0.83 units</div>
+          <div style="margin-top:8px;font-size:12.5px;line-height:1.6;color:#62777a">
+            Alabama scored 5. Settled at <span class="m">1.83</span>.
+          </div>
+        </div>
+
+        <div style="flex:1;padding:26px 28px">
+          <div class="m" style="font-size:10px;letter-spacing:.18em;color:#62777a">WAS IT A GOOD BET?</div>
+          <div style="margin-top:12px;font-size:44px;line-height:.95;color:#c4574d">No</div>
+          <div class="m" style="margin-top:12px;font-size:18px;color:#c4574d">−4.6% at the time</div>
+          <div style="margin-top:8px;font-size:12.5px;line-height:1.6;color:#62777a">
+            The closing line moved to <span class="m">1.74</span>, against you.
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:22px;padding:20px 24px;border-left:2px solid #e8c547;background:rgba(232,197,71,.04)">
+        <p style="margin:0;font-size:14.5px;line-height:1.7;color:#dce6e4">
+          This one won and still should not have been bet. At 1.83 the price needed Alabama to
+          go over more often than the sharp market expected, and the closing line moved further
+          against you — which is the market agreeing, after the fact, that the number was wrong.
+        </p>
+        <p style="margin:12px 0 0;font-size:13px;line-height:1.7;color:#93a5a3">
+          Repeat this bet a hundred times and it loses money. The profit here is variance, not
+          skill, and treating it as skill is how a bankroll disappears slowly enough to feel
+          like bad luck.
+        </p>
+      </div>
+
+      <!-- Where this sits among the four possible outcomes. The quadrant makes
+           "won but shouldn't have" a named, ordinary place to land. -->
+      <div style="margin-top:34px">
+        <div style="font-size:11.5px;color:#62777a">Where this bet sits</div>
+        <div style="margin-top:12px;display:grid;grid-template-columns:120px 1fr 1fr;gap:1px;background:#1f2f32;border:1px solid #1f2f32">
+          <div style="background:#0e1719;padding:11px 14px;font-size:11px;color:#62777a"></div>
+          <div style="background:#0e1719;padding:11px 14px;font-size:11.5px;color:#93a5a3">Good bet (+EV)</div>
+          <div style="background:#0e1719;padding:11px 14px;font-size:11.5px;color:#93a5a3">Bad bet (−EV)</div>
+
+          <div style="background:#0e1719;padding:16px 14px;font-size:11.5px;color:#93a5a3">Won</div>
+          <div style="background:#0e1719;padding:16px 14px;font-size:12.5px;color:#62777a">Right, and paid</div>
+          <div style="background:rgba(232,197,71,.07);padding:16px 14px;font-size:12.5px;color:#e8c547">You are here — lucky</div>
+
+          <div style="background:#0e1719;padding:16px 14px;font-size:11.5px;color:#93a5a3">Lost</div>
+          <div style="background:#0e1719;padding:16px 14px;font-size:12.5px;color:#62777a">Right, unlucky</div>
+          <div style="background:#0e1719;padding:16px 14px;font-size:12.5px;color:#62777a">Wrong, and paid for it</div>
+        </div>
+        <p style="margin:12px 0 0;font-size:12px;line-height:1.6;color:#62777a;max-width:76ch">
+          Only the left column is repeatable. Results move you between rows; only the price you
+          took decides your column.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
