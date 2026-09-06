@@ -259,14 +259,87 @@ describe("edge engine", () => {
     expect(opps.every((o) => o.bestBook !== "draftkings")).toBe(true);
   });
 
+  it("rejects a book whose own market implies under 100%", () => {
+    // Exchanges park both sides at the extreme of the ladder when nothing is
+    // matched. Live MLB data produced a 110/110 two-way market: implied
+    // probabilities summing to 0.018, which normalises to a clean-looking 50/50
+    // and a fictitious +5400% edge. Such a market must never enter the engine.
+    const ev = event([
+      book("pinnacle", "Pinnacle", [h2h(1.9, 2.0)]),
+      book("betfair_ex_eu", "Betfair", [h2h(110, 110)]),
+    ]);
+
+    const opps = findOpportunities(ev, { ...config, minEv: -1 });
+    expect(opps.every((o) => o.bestBook !== "betfair_ex_eu")).toBe(true);
+    expect(opps.every((o) => o.ev < 1)).toBe(true);
+  });
+
+  it("rejects a market whose prices imply far more than 100%", () => {
+    // The opposite failure: a feed dropping an outcome, leaving the rest
+    // summing to well over 1.
+    const ev = event([
+      book("pinnacle", "Pinnacle", [h2h(1.9, 2.0)]),
+      book("betus", "BetUS", [h2h(1.02, 1.02)]),
+    ]);
+    const opps = findOpportunities(ev, { ...config, minEv: -1 });
+    expect(opps.every((o) => o.bestBook !== "betus")).toBe(true);
+  });
+
+  it("lowers confidence as the edge grows, not raises it", () => {
+    // Against a sharp reference a large gap is evidence of broken data, so a
+    // bigger edge must never grade better than a small one.
+    const small = event([
+      book("pinnacle", "Pinnacle", [h2h(1.9, 2.0)]),
+      book("draftkings", "DraftKings", [h2h(2.02, 1.85)]),
+    ]);
+    const huge = event([
+      book("pinnacle", "Pinnacle", [h2h(1.9, 2.0)]),
+      book("draftkings", "DraftKings", [h2h(2.6, 1.55)]),
+    ]);
+
+    const a = findOpportunities(small, config).find((o) => o.bestBook === "draftkings")!;
+    const b = findOpportunities(huge, config).find((o) => o.bestBook === "draftkings")!;
+
+    expect(a.ev).toBeLessThan(b.ev);
+    expect(a.confidence).toBe("high");
+    expect(b.confidence).toBe("low");
+    expect(b.warnings.join(" ")).toMatch(/implausibly large/);
+  });
+
+  it("ignores fixtures that have already started", () => {
+    // In-play books move at different speeds, so a stale price at one against a
+    // live price at another invents huge phantom edges. Live MLB data produced
+    // a +213% "edge" on a game that had been running for two hours.
+    const live: OddsApiEvent = {
+      ...event([
+        book("pinnacle", "Pinnacle", [h2h(9.97, 1.06)]),
+        book("betfair_ex_eu", "Betfair", [h2h(40, 1.02)]),
+      ]),
+      commence_time: "2026-09-07T17:00:00Z",
+    };
+
+    const during = new Date("2026-09-07T19:00:00Z");
+    const before = new Date("2026-09-07T15:00:00Z");
+
+    expect(findOpportunities(live, { ...config, minEv: -1, now: during })).toHaveLength(0);
+    // The same fixture before kickoff is priced normally.
+    expect(
+      findOpportunities(live, { ...config, minEv: -1, now: before }).length,
+    ).toBeGreaterThan(0);
+  });
+
   it("returns nothing for an event with no bookmakers", () => {
     expect(findOpportunities(event([]), config)).toHaveLength(0);
   });
 
   it("ranks opportunities by EV", () => {
+    // Each soft book is generous on ONE side only. A single book generous on
+    // both sides would imply under 100% total probability, which no real book
+    // offers and which the degenerate-market filter now rejects.
     const ev = event([
       book("pinnacle", "Pinnacle", [h2h(1.9, 2.0)]),
-      book("draftkings", "DraftKings", [h2h(2.1, 2.15)]),
+      book("draftkings", "DraftKings", [h2h(2.1, 1.8)]),
+      book("fanduel", "FanDuel", [h2h(1.85, 2.15)]),
     ]);
     const opps = findOpportunities(ev, config);
     expect(opps.length).toBeGreaterThan(1);

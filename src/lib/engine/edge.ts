@@ -113,6 +113,20 @@ export interface EngineConfig {
   /** Drop opportunities whose EV falls below this. */
   minEv: number;
   bankroll: number;
+  /**
+   * Ignore fixtures that have already started.
+   *
+   * This is on by default and should stay on. In-play books update at wildly
+   * different speeds, so a stale price at one against a current price at
+   * another manufactures enormous phantom edges. On live MLB data this produced
+   * a +213% "edge" on the Angels -- correct arithmetic on a game the Pirates
+   * were already winning, and completely untakeable.
+   *
+   * A pre-match terminal should not be pricing in-play markets at all.
+   */
+  excludeStarted: boolean;
+  /** Treated as "now" when deciding what has started. Injected for tests. */
+  now?: Date;
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -122,7 +136,25 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   excludeBooks: [],
   minEv: 0.02,
   bankroll: 1000,
+  excludeStarted: true,
 };
+
+/**
+ * Sanity bounds on a single book's own overround.
+ *
+ * A bookmaker always charges margin, so within ONE book's own market the
+ * implied probabilities must sum to more than 1. When they do not, it is not an
+ * arbitrage -- it is a broken or empty book. Betfair and other exchanges park
+ * both sides at the extreme of the ladder when nothing is matched, which on
+ * live MLB data produced 110/110 two-way markets: implied probabilities summing
+ * to 0.018, a "fair" price of 50/50 after normalisation, and a completely
+ * fictitious +5400% edge.
+ *
+ * The upper bound catches the opposite failure -- a garbage feed or a market
+ * with a missing outcome, where the remaining prices imply far more than 100%.
+ */
+const MIN_OVERROUND_SUM = 0.99;
+const MAX_OVERROUND_SUM = 3.0;
 
 /** A single market at a single book, grouped so it can be devigged as a unit. */
 interface BookMarket {
@@ -168,6 +200,21 @@ function groupMarkets(bookmakers: OddsApiBookmaker[], exclude: string[]): BookMa
       for (const [, outcomes] of byKey) {
         // A market we cannot devig is a market we cannot price.
         if (outcomes.length < 2) continue;
+
+        // Reject degenerate books before they can contaminate anything. This
+        // has to happen here rather than at scoring time, because such a market
+        // would otherwise poison BOTH the consensus and the best-price search.
+        let sum = 0;
+        let bad = false;
+        for (const o of outcomes) {
+          if (!(o.price > 1) || !Number.isFinite(o.price)) {
+            bad = true;
+            break;
+          }
+          sum += 1 / o.price;
+        }
+        if (bad || sum < MIN_OVERROUND_SUM || sum > MAX_OVERROUND_SUM) continue;
+
         groups.push({
           bookKey: book.key,
           bookTitle: book.title,
@@ -300,6 +347,12 @@ export function findOpportunities(
   config: EngineConfig = DEFAULT_ENGINE_CONFIG,
   modelProbabilities?: ModelProbabilities,
 ): Opportunity[] {
+  // Anything already under way is dropped before any pricing happens.
+  if (config.excludeStarted) {
+    const now = config.now ?? new Date();
+    if (new Date(event.commence_time).getTime() <= now.getTime()) return [];
+  }
+
   const sport = sportForKey(event.sport_key);
   const groups = groupMarkets(event.bookmakers, config.excludeBooks);
   if (groups.length === 0) return [];
@@ -365,10 +418,11 @@ export function findOpportunities(
     if (c.booksCounted < 3 && c.source !== "pinnacle") {
       warnings.push(`Only ${c.booksCounted} book(s) in the consensus -- thin evidence.`);
     }
-    if (ev > 0.15) {
+    if (ev > IMPLAUSIBLE_EDGE) {
       warnings.push(
-        `+${(ev * 100).toFixed(1)}% is implausibly large. Almost always a stale line, a ` +
-          `mismatched handicap, or a market the book has already taken down. Verify before betting.`,
+        `+${(ev * 100).toFixed(1)}% is implausibly large against a sharp reference. Real market ` +
+          `edges are 1-4%. Almost always a stale line, a pulled market, a mismatched handicap, or ` +
+          `an illiquid exchange price. Verify it is still takeable before betting.`,
       );
     }
     // NOTE: there is deliberately no "reference book is also the best price"
@@ -421,19 +475,39 @@ export function findOpportunities(
 }
 
 /**
+ * Edges above this are treated as data problems rather than opportunities.
+ *
+ * The relationship between edge size and trustworthiness is INVERTED once a
+ * sharp reference is involved. A sharp book's price is close to the true
+ * probability, so a soft book being 2% away from it is an ordinary lag, while
+ * being 15% away means something is broken: the line is stale, the market has
+ * been pulled, the handicaps do not match, or the price sits on an illiquid
+ * exchange ladder. Live MLB data produced exactly these.
+ */
+const IMPLAUSIBLE_EDGE = 0.1;
+/** Above this, the evidence can never be graded better than medium. */
+const SUSPICIOUS_EDGE = 0.06;
+
+/**
  * Grade how much to trust an opportunity.
  *
- * Confidence is about the quality of the EVIDENCE, not the size of the edge --
- * a huge edge from one soft book is far less trustworthy than a small edge
- * measured against Pinnacle.
+ * Confidence is about the quality of the EVIDENCE, not the size of the payoff.
+ * Note the deliberate inversion: a bigger edge lowers confidence rather than
+ * raising it, because against a sharp reference a large gap is far more likely
+ * to be a data artefact than a real opportunity.
  */
 function gradeConfidence(c: Consensus, ev: number, warnings: string[]): Confidence {
   if (warnings.some((w) => w.includes("devig artefact"))) return "low";
   if (c.source === "all-book-consensus") return "low";
-  if (ev > 0.15) return "low";
-  if (c.source === "pinnacle" && c.methodSpread < ev / 2) return "high";
-  if (c.source === "sharp-consensus" && c.booksCounted >= 2 && c.methodSpread < ev) return "high";
-  return "medium";
+  if (ev > IMPLAUSIBLE_EDGE) return "low";
+
+  const evidenceIsStrong =
+    (c.source === "pinnacle" && c.methodSpread < ev / 2) ||
+    (c.source === "sharp-consensus" && c.booksCounted >= 2 && c.methodSpread < ev);
+
+  if (!evidenceIsStrong) return "medium";
+  // Strong evidence, but an edge this size still argues against itself.
+  return ev > SUSPICIOUS_EDGE ? "medium" : "high";
 }
 
 /** Scan many events at once and rank every opportunity found. */

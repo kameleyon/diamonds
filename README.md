@@ -45,6 +45,11 @@ Odds and results come from **different providers on purpose**. Big Balls has the
 history the models need but puts bookmaker odds behind its Edge plan; The Odds API has the
 prices. Neither alone is enough.
 
+**Pinnacle only exists in the `eu` region.** The `us` region has no Pinnacle, so a US-only scan
+falls back to soft-book consensus and every edge is correctly graded low confidence. The default
+region set is `["us", "eu"]` for exactly this reason — dropping `eu` to save credits also removes
+the sharp anchor the whole engine depends on.
+
 **Credits are the binding constraint.** The Odds API bills `markets × regions` per competition, so three markets across two regions costs six credits per league scanned. Every refresh reports what it spent, and `buildSlate` enforces a credit budget. Keep the sport selection tight.
 
 ## The three screens
@@ -69,6 +74,9 @@ A few properties worth knowing, all asserted in the test suite:
 
 - Power and Shin correct the favourite-longshot bias in a specific direction. Getting the sign backwards is the classic silent bug — it produces plausible, wrong numbers with no visible symptom.
 - You can never find an edge by comparing a book against its own devigged line. The vig guarantees `fair × price < 1` for every outcome.
+- A book's own market must imply *more* than 100%. Bookmakers always charge margin, so `R < 1` within one book is a broken or empty book, not an arbitrage. Live data produced a 110/110 Betfair market — 1.8% implied total, which normalised to a clean 50/50 and a fictitious **+5400%** edge. Such markets are now rejected before pricing.
+- **In-play fixtures are excluded.** Books update at different speeds during a game, so a stale price at one against a live price at another invents huge phantom edges. Live data produced a +213% "edge" on a baseball game that had been running two hours.
+- **Confidence falls as the edge grows.** Against a sharp reference, a large gap is evidence of broken data rather than opportunity. Edges above 10% are graded low regardless of how good the evidence otherwise looks.
 - Parlay EV is `∏(1 + EVᵢ) − 1`. Multiplication magnifies whatever sign you feed it: three legs at +3% compound to +9.3%, three legs at a normal −5% compound to −14.3%. A parlay is only ever correct when every leg is independently +EV.
 
 ## Commands
