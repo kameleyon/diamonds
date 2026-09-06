@@ -12,6 +12,9 @@ export type ServiceKey =
   | "BIGBALLS_API_KEY"
   | "OPENROUTER_API_KEY"
   | "SPORTRADAR_API_KEY"
+  | "NEXT_PUBLIC_SUPABASE_URL"
+  | "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+  | "DIAMONDS_OWNER_EMAILS"
   | "SUPABASE_URL"
   | "SUPABASE_SECRET_KEY"
   | "DATABASE_URL";
@@ -55,6 +58,30 @@ export const SERVICES: ServiceSpec[] = [
     purpose:
       "Tennis, soccer, NFL and MLB results. The only tennis source available here — Big Balls does not cover tennis at all. No odds on this key.",
     signupUrl: "https://developer.sportradar.com/",
+    required: false,
+  },
+  {
+    key: "NEXT_PUBLIC_SUPABASE_URL",
+    label: "Supabase URL (browser)",
+    purpose:
+      "Sign-in. Inlined into the client bundle at BUILD time, so adding it after a deploy has no effect until the next build.",
+    signupUrl: "https://supabase.com/dashboard",
+    required: false,
+  },
+  {
+    key: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    label: "Supabase publishable key (browser)",
+    purpose:
+      "Sign-in. Safe to expose — it can do nothing Row Level Security does not permit. Also build-time inlined.",
+    signupUrl: "https://supabase.com/dashboard",
+    required: false,
+  },
+  {
+    key: "DIAMONDS_OWNER_EMAILS",
+    label: "Access allowlist",
+    purpose:
+      "Comma-separated addresses permitted to use this terminal. Empty means NOBODY is authorised — sign-in will refuse even a valid link.",
+    signupUrl: "https://vercel.com/docs/environment-variables",
     required: false,
   },
   {
