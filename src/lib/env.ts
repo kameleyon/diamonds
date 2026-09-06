@@ -10,7 +10,8 @@
 export type ServiceKey =
   | "ODDS_API_KEY"
   | "BIGBALLS_API_KEY"
-  | "ANTHROPIC_API_KEY"
+  | "OPENROUTER_API_KEY"
+  | "SPORTRADAR_API_KEY"
   | "DATABASE_URL";
 
 interface ServiceSpec {
@@ -39,11 +40,19 @@ export const SERVICES: ServiceSpec[] = [
     required: false,
   },
   {
-    key: "ANTHROPIC_API_KEY",
-    label: "Anthropic",
+    key: "OPENROUTER_API_KEY",
+    label: "OpenRouter (Claude Opus 5)",
     purpose:
-      "Writes the plain-English rationale for each pick and flags context the model cannot see (injuries, lineups, weather).",
-    signupUrl: "https://console.anthropic.com/",
+      "Writes the plain-English rationale for each pick and flags context the price data cannot show (injuries, lineups, weather).",
+    signupUrl: "https://openrouter.ai/keys",
+    required: false,
+  },
+  {
+    key: "SPORTRADAR_API_KEY",
+    label: "Sportradar",
+    purpose:
+      "Tennis, soccer, NFL and MLB results. The only tennis source available here — Big Balls does not cover tennis at all. No odds on this key.",
+    signupUrl: "https://developer.sportradar.com/",
     required: false,
   },
   {

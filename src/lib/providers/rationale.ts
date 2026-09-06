@@ -12,14 +12,22 @@
  * evidence behind an edge and saying whether it looks like a real overlay or a
  * stale line, and naming the context a price-only model cannot see -- injuries,
  * lineups, rest, weather, motivation.
+ *
+ * PROVIDER NOTE: this calls Claude through OpenRouter rather than the Anthropic
+ * SDK directly, because that is the gateway the user chose. OpenRouter exposes
+ * an OpenAI-compatible REST surface, so this is a plain fetch against their
+ * documented contract -- not an OpenAI shim standing in for the Anthropic SDK.
+ * To move to the first-party API later, swap this one function for
+ * `client.messages.parse()`; nothing above it changes.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { requireEnv } from "../env";
+import { readEnv } from "../env";
 import type { Opportunity } from "../engine/edge";
 import { pct, signedPct, marketLabel, matchup, kickoff } from "../display";
+
+const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const MODEL = "anthropic/claude-opus-5";
 
 export const RationaleSchema = z.object({
   verdict: z
@@ -92,37 +100,78 @@ export class RationaleUnavailableError extends Error {
 /**
  * Write the rationale for one opportunity.
  *
- * Effort is deliberately low: this is a short judgement-and-writing task over
- * data that is already computed, not a reasoning problem. Raise it only if the
- * output turns out to be shallow.
+ * Uses a strict JSON schema so the response is machine-checkable rather than
+ * prose we have to parse hopefully. The schema is still re-validated with Zod
+ * after the fact: `strict` constrains generation, it does not remove the need
+ * to verify what actually came back.
  */
 export async function explainOpportunity(o: Opportunity): Promise<Rationale> {
-  let apiKey: string;
-  try {
-    apiKey = requireEnv("ANTHROPIC_API_KEY");
-  } catch (err) {
-    throw new RationaleUnavailableError((err as Error).message);
-  }
-
-  const client = new Anthropic({ apiKey });
-
-  const response = await client.messages.parse({
-    model: "claude-opus-5",
-    // Deliberately short structured output; nothing here needs headroom.
-    max_tokens: 2000,
-    system: SYSTEM,
-    output_config: {
-      format: zodOutputFormat(RationaleSchema),
-      effort: "low",
-    },
-    messages: [{ role: "user", content: describe(o) }],
-  });
-
-  if (!response.parsed_output) {
+  const apiKey = readEnv("OPENROUTER_API_KEY");
+  if (!apiKey) {
     throw new RationaleUnavailableError(
-      "The model did not return output matching the expected schema.",
+      "Missing OPENROUTER_API_KEY. Add it to .env.local to get written reads.",
     );
   }
 
-  return response.parsed_output;
+  const jsonSchema = z.toJSONSchema(RationaleSchema, { io: "output" });
+
+  const res = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      // OpenRouter attributes traffic with these; harmless locally, useful later.
+      "X-Title": "Diamonds",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      // Deliberately short structured output; nothing here needs headroom.
+      max_tokens: 1200,
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: describe(o) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "rationale", strict: true, schema: jsonSchema },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new RationaleUnavailableError(
+      `OpenRouter returned ${res.status}: ${body.slice(0, 200)}`,
+    );
+  }
+
+  const payload = (await res.json()) as {
+    error?: { message?: string };
+    choices?: { message?: { content?: string } }[];
+  };
+
+  if (payload.error) {
+    throw new RationaleUnavailableError(payload.error.message ?? "OpenRouter returned an error.");
+  }
+
+  const content = payload.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new RationaleUnavailableError("OpenRouter returned no content.");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new RationaleUnavailableError("The model did not return valid JSON.");
+  }
+
+  const result = RationaleSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new RationaleUnavailableError(
+      `The model's output did not match the expected shape: ${result.error.issues[0]?.message ?? "unknown"}`,
+    );
+  }
+
+  return result.data;
 }
