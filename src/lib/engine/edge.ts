@@ -439,7 +439,32 @@ export function findOpportunities(
       );
     }
 
-    const stake = recommendedStake(usedProbability, b.price, config.bankroll, config.stake);
+    const confidence = gradeConfidence(c, ev, warnings);
+
+    /*
+     * A bet the engine does not believe must not be sized.
+     *
+     * `recommendedStake` only sees a probability and a price -- it has no way
+     * to know the evidence behind that probability is untrustworthy. Left
+     * ungated it happily returns the 2% cap on a +105% "edge", which is what
+     * live Argentine-league data produced: a stale price at one soft book
+     * against a single thin sharp reference, flagged with two caveats and
+     * still recommending a real stake.
+     *
+     * Flagging a row as not credible and simultaneously sizing money onto it
+     * is incoherent. Low confidence means the evidence does not support the
+     * claim, so the stake is zero and the row survives only as a warning.
+     */
+    const believable = confidence !== "low";
+    const stake = believable
+      ? recommendedStake(usedProbability, b.price, config.bankroll, config.stake)
+      : {
+          fraction: 0,
+          amount: 0,
+          fullKelly: 0,
+          ev,
+          limitedBy: "not-credible" as const,
+        };
 
     opportunities.push({
       eventId: event.id,
@@ -466,7 +491,7 @@ export function findOpportunities(
       stake,
       methodSpread: c.methodSpread,
       overround: c.overround,
-      confidence: gradeConfidence(c, ev, warnings),
+      confidence,
       warnings,
     });
   }

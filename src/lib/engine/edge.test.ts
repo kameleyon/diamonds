@@ -328,6 +328,34 @@ describe("edge engine", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("never sizes a stake on a row it does not believe", () => {
+    // Live Argentine-league data produced a +105% "edge" -- a stale soft price
+    // against one thin sharp reference -- that the board correctly flagged with
+    // two caveats and then staked $20 on anyway. Flagging a row as untrustworthy
+    // and sizing money onto it are incoherent; the stake must be zero.
+    const ev = event([
+      book("pinnacle", "Pinnacle", [h2h(2.8, 1.45)]),
+      book("bovada", "Bovada", [h2h(5.75, 1.14)]),
+    ]);
+
+    const row = findOpportunities(ev, config).find((o) => o.bestBook === "bovada")!;
+    expect(row.ev).toBeGreaterThan(0.5);
+    expect(row.confidence).toBe("low");
+    expect(row.stake.amount).toBe(0);
+    expect(row.stake.fraction).toBe(0);
+    expect(row.stake.limitedBy).toBe("not-credible");
+  });
+
+  it("still sizes a credible edge normally", () => {
+    const ev = event([
+      book("pinnacle", "Pinnacle", [h2h(1.9, 2.0)]),
+      book("draftkings", "DraftKings", [h2h(2.02, 1.85)]),
+    ]);
+    const row = findOpportunities(ev, config).find((o) => o.bestBook === "draftkings")!;
+    expect(row.confidence).toBe("high");
+    expect(row.stake.amount).toBeGreaterThan(0);
+  });
+
   it("returns nothing for an event with no bookmakers", () => {
     expect(findOpportunities(event([]), config)).toHaveLength(0);
   });

@@ -120,7 +120,13 @@ function Row({ o }: { o: Opportunity }) {
 
       <td className="py-3 pr-3 text-right">
         <div className="num text-[13.5px] text-bone">{money(o.stake.amount)}</div>
-        <div className="num mt-0.5 text-[11px] text-bone-faint">{pct(o.stake.fraction, 2)}</div>
+        <div className="num mt-0.5 text-[11px] text-bone-faint">
+          {o.stake.limitedBy === "not-credible" ? (
+            <span className="text-brick">not credible</span>
+          ) : (
+            pct(o.stake.fraction, 2)
+          )}
+        </div>
         <LogBetButton opportunity={o} />
         <ExplainButton opportunity={o} />
         {hasNotes && (

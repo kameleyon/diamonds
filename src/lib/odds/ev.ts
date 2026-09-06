@@ -85,8 +85,19 @@ export interface StakeRecommendation {
   /** Full Kelly before the multiplier and cap, for reference. */
   fullKelly: number;
   ev: number;
-  /** Which rule stopped or shrank the bet, if any. */
-  limitedBy: "none" | "below-min-edge" | "negative-ev" | "max-stake-cap";
+  /**
+   * Which rule stopped or shrank the bet, if any.
+   *
+   * `not-credible` is set by the engine rather than by this module: it means
+   * the edge may be arithmetically real but the evidence behind it is not
+   * trustworthy, so no money is sized onto it.
+   */
+  limitedBy:
+    | "none"
+    | "below-min-edge"
+    | "negative-ev"
+    | "max-stake-cap"
+    | "not-credible";
 }
 
 /**
