@@ -1,4 +1,5 @@
 import { listBets, summarize } from "@/lib/db/bet-store";
+import { getViewer } from "@/lib/auth";
 import { LedgerTable } from "@/components/ledger-table";
 import { ProfitCurve } from "@/components/profit-curve";
 import { money, pct, signedPct } from "@/lib/display";
@@ -6,7 +7,10 @@ import { money, pct, signedPct } from "@/lib/display";
 export const dynamic = "force-dynamic";
 
 export default async function LedgerPage() {
-  const bets = await listBets();
+  // Middleware keeps unauthorised browsers off this page; reading the viewer
+  // here is what scopes the query to their rows.
+  const viewer = await getViewer();
+  const bets = await listBets(viewer?.id ?? null);
   const s = summarize(bets);
 
   return (

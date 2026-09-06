@@ -105,9 +105,53 @@ if you get them wrong:
 - **Without a date filter the list returns upcoming fixtures**, so a naive backfill collects zero
   finished results and looks like a silent failure rather than a bug.
 
+## Security model
+
+The database is **shared with a separate live application** that owns 33 tables in `public`.
+That single fact drives every decision here.
+
+**The `diamonds` schema is not exposed to the Data API.** PostgREST serves only the schemas
+listed in the project's API settings, and this is not one of them, so `anon` and `authenticated`
+cannot reach these tables through REST at all. Exposing it would be a project-wide change
+affecting the other application, so it stays closed.
+
+**Signed in is not the same as allowed in.** Supabase Auth is scoped to the *project*, so users
+of the other application can obtain a perfectly valid session here. Access is an explicit
+allowlist (`DIAMONDS_OWNER_EMAILS`), checked server-side on every request and again in the
+magic-link callback, which signs a non-listed user straight back out. With no allowlist
+configured, nobody is authorised — it fails closed.
+
+**Middleware is not the security boundary.** It refreshes the session and redirects browsers,
+but Server Actions are callable POST endpoints that middleware never sees. Every action and
+every data read calls `requireViewer()` itself.
+
+**The secret key can read everything.** It bypasses RLS and reaches every schema in the project,
+including the other application's tables. `src/lib/supabase/admin.ts` opens with
+`import "server-only"`, which makes importing it from a Client Component a *build error* rather
+than a runtime leak. Because that key bypasses RLS, the `.eq("user_id", …)` filters in
+`bet-store-pg.ts` are the only thing enforcing ownership on that path — RLS is defence in depth
+there, not the control.
+
+**RLS policies follow the rules that are easy to get wrong**: `TO authenticated` plus an
+ownership predicate (the role alone is authentication without authorisation), `USING` *and*
+`WITH CHECK` on UPDATE (without the latter a row can be reassigned to another user), and
+`auth.uid()` wrapped in a scalar subselect so it evaluates once per statement.
+
+Headers: nonce-based CSP with `strict-dynamic` (so Next's inline hydration scripts run without
+`unsafe-inline` permitting injected ones), `frame-ancestors 'none'`, `form-action 'self'`,
+HSTS, `nosniff`, and no `X-Powered-By`. Styles keep `unsafe-inline` — Tailwind needs it and
+there is no nonce path for style attributes; that is a stated limitation, and style injection is
+a far weaker primitive than script injection.
+
 ## Storage
 
-The bet log, collected results and fitted ratings live in `.data/` as JSON. That is a deliberate choice for a single-user local tool — one writer, small dataset, no provisioning, works immediately. Writes go through a temp file and a rename so an interrupted write cannot truncate the log. If this ever becomes multi-user, replace `src/lib/db/bet-store.ts`; nothing above it depends on the storage.
+Two modes, chosen by configuration and **not a fallback**: with Supabase configured the bet log
+lives in `diamonds.bets`, scoped to the signed-in user; without it, in a local JSON file. If
+Postgres is configured and a query fails, the app throws rather than quietly writing to the file
+— a silent downgrade would split the ledger across two stores, and its whole value depends on
+there being exactly one record of what was actually staked.
+
+In local mode the bet log, collected results and fitted ratings live in `.data/` as JSON. That is a deliberate choice for a single-user local tool — one writer, small dataset, no provisioning, works immediately. Writes go through a temp file and a rename so an interrupted write cannot truncate the log. If this ever becomes multi-user, replace `src/lib/db/bet-store.ts`; nothing above it depends on the storage.
 
 ## Honest limitations
 

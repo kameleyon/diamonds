@@ -20,6 +20,26 @@ const TABS = [
 export function TopRail() {
   const pathname = usePathname();
 
+  // On the sign-in screen there is nothing to navigate to and nothing to sign
+  // out of; showing the full rail there offers dead links and implies a session
+  // that does not exist.
+  const signedOut = pathname === "/login" || pathname.startsWith("/auth/");
+  if (signedOut) {
+    return (
+      <header className="border-b border-slate-rule">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-2.5 px-5 py-3 text-bone">
+          <ChalkDiamond />
+          <span
+            className="text-[15px] font-semibold tracking-[0.14em]"
+            style={{ fontStretch: "112%" }}
+          >
+            DIAMONDS
+          </span>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="border-b border-slate-rule">
       <div className="mx-auto flex max-w-[1400px] items-stretch gap-8 px-5">
@@ -63,7 +83,16 @@ export function TopRail() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center">
+        <div className="ml-auto flex items-center gap-4">
+          {/* A real form POST: sign-out must not be reachable by a GET. */}
+          <form action="/auth/signout" method="post" className="flex items-center">
+            <button
+              type="submit"
+              className="text-[13px] text-bone-faint transition-colors hover:text-bone-dim"
+            >
+              Sign out
+            </button>
+          </form>
           <Link
             href="/setup"
             className={[
