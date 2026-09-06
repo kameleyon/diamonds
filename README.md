@@ -78,6 +78,7 @@ npm run dev          # dev server
 npm test             # 66 tests over the odds maths, models and engine
 npm run backfill     # pull completed results into .data/ (resumable)
 npm run fit          # fit the models and print what converged
+npm run backtest     # walk-forward test: does any model actually have skill?
 npm run devig-demo   # how far the four devig methods disagree
 npm run build
 ```
@@ -106,7 +107,17 @@ The bet log, collected results and fitted ratings live in `.data/` as JSON. That
 - **Tennis has no results source.** Big Balls does not cover tennis at all, so tennis ratings cannot be fitted from the current providers.
 - **Team names are not aliased.** The same club can appear under two spellings ("SV Elversberg" and "SV 07 Elversberg"), splitting its history. Both were excluded as thin here, but a longer backfill will need an alias table.
 - **Cup fixtures carry the league label.** Domestic cup matches against lower-division clubs are labelled with the top-flight league, so those clubs would otherwise be fitted as league members. Competitors with fewer than six appearances are dropped before fitting for exactly this reason — without it, Hull City topped the Premier League on a wildly unidentified parameter.
-- **There is no backtest harness yet.** Until there is, model weight should stay at zero.
+- **The models have no useful skill yet, and this is measured, not assumed.** `npm run backtest` walks forward over the stored results — fitting only on the past, predicting matches the model has never seen — and scores with log loss against a base-rate baseline. Current findings on 3,900 results:
+
+  | Model | n | Skill over base rate |
+  |---|---|---|
+  | MLB Elo | 2,146 | −0.0% (0.67% once calibrated) |
+  | Soccer Elo | 1,293 | 0.2% (0.82% once calibrated) |
+  | Dixon-Coles per league | 60–127 | inconclusive, samples far too small |
+
+  Raw Elo was systematically overconfident — it said 72% where 66% happened, and 28% where 34% happened. Shrinking toward a *running* base rate (never the full-sample rate, which would leak the future) cuts calibration error from 3.5% to 0.5% on MLB and turns the skill positive. It is still under 1%, which is not a betting edge. **Model weight stays at zero, now for a measured reason rather than a cautious one.**
+
+  A backtest also cannot tell you whether a model beats the *market* — that needs historical closing odds, which no current data source provides on its plan. Beating a base rate is the floor, not the bar.
 - **Player props are only available per-event**, which costs credits per fixture. Pull them selectively.
 - **MLB team Elo is a weak model** because the starting pitcher dominates a single game. Treat it as a prior, not a forecast.
 - **Tennis uses one rating per player**, ignoring surface, which is a known and material simplification.

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "devig-demo": "tsx scripts/devig-demo.ts",
     "backfill": "tsx scripts/backfill.ts",
-    "fit": "tsx scripts/fit.ts"
+    "fit": "tsx scripts/fit.ts",
+    "backtest": "tsx scripts/backtest.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
