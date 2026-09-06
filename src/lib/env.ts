@@ -12,6 +12,8 @@ export type ServiceKey =
   | "BIGBALLS_API_KEY"
   | "OPENROUTER_API_KEY"
   | "SPORTRADAR_API_KEY"
+  | "SUPABASE_URL"
+  | "SUPABASE_SECRET_KEY"
   | "DATABASE_URL";
 
 interface ServiceSpec {
@@ -53,6 +55,22 @@ export const SERVICES: ServiceSpec[] = [
     purpose:
       "Tennis, soccer, NFL and MLB results. The only tennis source available here — Big Balls does not cover tennis at all. No odds on this key.",
     signupUrl: "https://developer.sportradar.com/",
+    required: false,
+  },
+  {
+    key: "SUPABASE_URL",
+    label: "Supabase project URL",
+    purpose:
+      "Postgres storage for the bet log and collected results, in a dedicated `diamonds` schema.",
+    signupUrl: "https://supabase.com/dashboard",
+    required: false,
+  },
+  {
+    key: "SUPABASE_SECRET_KEY",
+    label: "Supabase secret key",
+    purpose:
+      "Server-side key. The diamonds tables have RLS enabled with no policies, so only this key can reach them — never expose it to a browser.",
+    signupUrl: "https://supabase.com/dashboard",
     required: false,
   },
   {
