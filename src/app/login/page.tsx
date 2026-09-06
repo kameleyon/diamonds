@@ -11,8 +11,9 @@ export default function LoginPage() {
       <div className="max-w-[46ch]">
         <h1 className="text-[22px] text-bone">Diamonds</h1>
         <p className="mt-2 text-[13.5px] leading-relaxed text-bone-dim">
-          A personal terminal. Access is limited to a named list of addresses, so signing in
-          with any other account will be refused even if the sign-in itself succeeds.
+          A personal terminal with one account. Access is limited to a named list of
+          addresses, so signing in with any other account is refused even when the credentials
+          themselves are valid.
         </p>
 
         {configured ? (
