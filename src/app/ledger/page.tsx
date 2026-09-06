@@ -1,6 +1,7 @@
 import { listBets, summarize } from "@/lib/db/bet-store";
 import { getViewer } from "@/lib/auth";
 import { LedgerTable } from "@/components/ledger-table";
+import { LedgerCards } from "@/components/mobile/ledger-cards";
 import { ProfitCurve } from "@/components/profit-curve";
 import { money, pct, signedPct } from "@/lib/display";
 
@@ -78,7 +79,17 @@ export default async function LedgerPage() {
 
       <div className="mt-6">
         {bets.length > 0 ? (
-          <LedgerTable bets={bets} />
+          <>
+            {/* Phones get tabbed cards; the desktop keeps the two-table view.
+                Same data, two shapes -- a 900px-wide table on a 390px screen
+                is a sideways-scrolling mess. */}
+            <div className="-mx-5 md:hidden">
+              <LedgerCards bets={bets} />
+            </div>
+            <div className="hidden md:block">
+              <LedgerTable bets={bets} />
+            </div>
+          </>
         ) : (
           <EmptyLedger />
         )}

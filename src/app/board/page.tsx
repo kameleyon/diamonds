@@ -6,6 +6,7 @@ import { DEFAULT_STAKE_CONFIG } from "@/lib/odds/ev";
 import { SPORTS, SPORT_IDS, sportForKey, type SportId } from "@/lib/sports/registry";
 import type { DevigMethod } from "@/lib/odds/devig";
 import { BoardTable } from "@/components/board-table";
+import { BoardCards } from "@/components/mobile/board-cards";
 import { BoardControls } from "@/components/board-controls";
 import { money, pct } from "@/lib/display";
 
@@ -113,7 +114,22 @@ export default async function BoardPage({
 
       <div className="mt-6">
         {slate.opportunities.length > 0 ? (
-          <BoardTable opportunities={slate.opportunities} />
+          <>
+            {/*
+              Two layouts, one data path. The desktop table is a comparison
+              instrument -- you scan a column down. That does not survive a
+              390px screen, so phones get cards instead of a squashed table.
+              Rendering both and toggling with CSS keeps a single source of
+              truth for the numbers; duplicate routes would mean duplicate
+              logic and eventual drift.
+            */}
+            <div className="md:hidden -mx-5">
+              <BoardCards opportunities={slate.opportunities} />
+            </div>
+            <div className="hidden md:block">
+              <BoardTable opportunities={slate.opportunities} />
+            </div>
+          </>
         ) : (
           <NoEdges
             scanned={slate.events.length}

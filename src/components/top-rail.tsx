@@ -57,7 +57,9 @@ export function TopRail() {
           </span>
         </Link>
 
-        <nav className="flex items-stretch" aria-label="Sections">
+        {/* Phones navigate from the bottom tab bar, which is thumb-reachable;
+            showing both would duplicate the same four destinations. */}
+        <nav className="hidden items-stretch md:flex" aria-label="Sections">
           {TABS.map((tab) => {
             const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             return (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { TopRail } from "@/components/top-rail";
+import { TabBar } from "@/components/mobile/tab-bar";
 
 const archivo = Archivo({
   variable: "--font-archivo",
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="slate-grain min-h-full flex flex-col">
         <TopRail />
         <main className="flex-1">{children}</main>
+        <TabBar />
       </body>
     </html>
   );
