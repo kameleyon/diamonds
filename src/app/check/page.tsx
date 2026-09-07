@@ -27,8 +27,23 @@ export default async function CheckPage({
     : (await buildSlate({ sports: ["nfl", "mlb", "soccer"], config: DEFAULT_ENGINE_CONFIG }))
         .opportunities;
 
-  const best = opportunities[0];
-  const strong = opportunities.filter((o) => o.ev >= 0.03 && o.confidence !== "low").length;
+  /*
+   * "Best" means the best BET, not the biggest number.
+   *
+   * `opportunities` is sorted by raw EV, and the top of that list is reliably
+   * the least trustworthy row: against a sharp reference a huge gap is evidence
+   * of a stale or broken price, not of value. Promoting it here was showing a
+   * +105% soccer moneyline priced by one soft book as the day's headline, while
+   * the engine itself had graded it low confidence and staked it at zero.
+   *
+   * So the headline is the best row the engine actually believes.
+   */
+  const credible = opportunities.filter(
+    (o) => o.confidence !== "low" && o.stake.amount > 0,
+  );
+  const best = credible[0];
+  const strong = credible.filter((o) => o.ev >= 0.03).length;
+  const suspect = opportunities.length - credible.length;
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-49px)] max-w-[1400px] flex-col px-5">
@@ -55,14 +70,16 @@ export default async function CheckPage({
           <p className="num text-[10px] tracking-[0.18em] text-bone-faint">TODAY</p>
           <div className="mt-3 flex items-baseline gap-3">
             <span className="num text-[42px] leading-[0.9] text-bone">
-              {opportunities.length}
+              {credible.length}
             </span>
             <span className="text-[13.5px] text-bone-dim">prices above fair value</span>
           </div>
           <p className="mt-3 max-w-[46ch] text-[12.5px] leading-relaxed text-bone-faint">
-            {opportunities.length === 0
-              ? "Nothing is out of line right now. That is the usual result, and betting nothing is the correct response to it."
-              : `${strong} clear 3% or better. The rest are thin or rest on a single book — the board says which.`}
+            {credible.length === 0
+              ? "Nothing credible is out of line right now. That is the usual result, and betting nothing is the correct response to it."
+              : `${strong} clear 3% or better.`}
+            {suspect > 0 &&
+              ` ${suspect} more looked like edges but rest on thin or broken evidence — the board says which.`}
           </p>
         </div>
 
@@ -95,8 +112,10 @@ export default async function CheckPage({
               </div>
             </>
           ) : (
-            <p className="mt-3 text-[13px] text-bone-dim">
-              No edge to show.{" "}
+            <p className="mt-3 max-w-[52ch] text-[13px] leading-relaxed text-bone-dim">
+              {suspect > 0
+                ? `Nothing worth showing. ${suspect} price${suspect === 1 ? "" : "s"} looked mispriced but rest on a single book or a stale line — large gaps against a sharp market are broken data, not value. `
+                : "No edge to show. "}
               <Link href="/board" className="text-chalk hover:underline">
                 Open the board
               </Link>{" "}
