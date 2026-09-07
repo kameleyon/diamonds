@@ -45,6 +45,18 @@ export function cacheKey(sports: string[], regions: Region[], markets: string[])
   ].join("|");
 }
 
+/**
+ * Read the cache regardless of age.
+ *
+ * Used when a live fetch has already failed — an exhausted quota, a provider
+ * outage. Prices an hour old are worse than fresh ones, and far better than an
+ * empty screen that gives no reason. The caller MUST label the age; this is a
+ * stated emergency fallback, never a silent substitution.
+ */
+export async function readStaleSlate(key: string): Promise<CachedSlate | null> {
+  return readCachedSlate(key, Number.POSITIVE_INFINITY);
+}
+
 export async function readCachedSlate(
   key: string,
   ttlSeconds = DEFAULT_TTL_SECONDS,

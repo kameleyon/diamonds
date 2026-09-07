@@ -22,10 +22,22 @@ export default async function CheckPage({
   const sp = await searchParams;
   const demo = sp.demo === "1";
 
-  const opportunities = demo
-    ? scanEvents(DEMO_EVENTS, DEFAULT_ENGINE_CONFIG)
-    : (await buildSlate({ sports: ["nfl", "mlb", "soccer"], config: DEFAULT_ENGINE_CONFIG }))
-        .opportunities;
+  const slate = demo
+    ? null
+    : await buildSlate({ sports: ["nfl", "mlb", "soccer"], config: DEFAULT_ENGINE_CONFIG });
+
+  const opportunities = demo ? scanEvents(DEMO_EVENTS, DEFAULT_ENGINE_CONFIG) : slate!.opportunities;
+
+  /*
+   * Whatever went wrong must be visible here.
+   *
+   * This page previously dropped the slate's errors, so an exhausted API quota
+   * rendered as "0 prices above fair value" -- indistinguishable from a quiet
+   * market. A tool built on auditable evidence cannot hide why it has nothing
+   * to say.
+   */
+  const notices = slate?.errors ?? [];
+  const stalePrices = Boolean(slate?.fromCache && (slate?.ageSeconds ?? 0) > 900);
 
   /*
    * "Best" means the best BET, not the biggest number.
@@ -64,10 +76,30 @@ export default async function CheckPage({
         </div>
       </div>
 
+      {notices.length > 0 && (
+        <ul className="mb-6 space-y-1.5">
+          {notices.map((n, i) => (
+            <li
+              key={i}
+              className="border-l-2 border-brick-dim pl-3 text-[12.5px] leading-relaxed text-bone-dim"
+            >
+              <span className="text-bone-faint">{n.scope}:</span> {n.message}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* The day, in two facts. */}
       <div className="flex flex-col border-t border-slate-rule md:flex-row">
         <div className="border-b border-slate-rule py-6 md:w-[380px] md:border-b-0 md:border-r md:pr-8">
-          <p className="num text-[10px] tracking-[0.18em] text-bone-faint">TODAY</p>
+          <p className="num text-[10px] tracking-[0.18em] text-bone-faint">
+            TODAY
+            {stalePrices && (
+              <span className="ml-2 text-brick">
+                · prices {Math.round((slate?.ageSeconds ?? 0) / 60)}m old
+              </span>
+            )}
+          </p>
           <div className="mt-3 flex items-baseline gap-3">
             <span className="num text-[42px] leading-[0.9] text-bone">
               {credible.length}

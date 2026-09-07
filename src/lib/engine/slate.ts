@@ -15,7 +15,7 @@ import { oddsApi, QuotaExhaustedError, type OddsApiEvent, type Region } from "..
 import { EnvMissingError } from "../env";
 import { SPORTS, type SportId } from "../sports/registry";
 import { scanEvents, DEFAULT_ENGINE_CONFIG, type EngineConfig, type Opportunity } from "./edge";
-import { cacheKey, readCachedSlate, writeCachedSlate, DEFAULT_TTL_SECONDS } from "./slate-cache";
+import { cacheKey, readCachedSlate, readStaleSlate, writeCachedSlate, DEFAULT_TTL_SECONDS } from "./slate-cache";
 
 export interface SlateRequest {
   sports: SportId[];
@@ -185,6 +185,37 @@ export async function buildSlate(request: SlateRequest): Promise<SlateResult> {
   return await finish();
 
   async function finish(): Promise<SlateResult> {
+    /*
+     * Nothing came back, but a stale slate may still be on disk. An exhausted
+     * quota with hour-old prices is a far more useful screen than an empty one,
+     * PROVIDED the age is stated -- which the UI does. This is a labelled
+     * emergency fallback, not a silent substitution: it only runs after a live
+     * fetch has already failed.
+     */
+    if (events.length === 0) {
+      const stale = await readStaleSlate(key);
+      if (stale) {
+        const minutes = Math.round(stale.ageSeconds / 60);
+        return {
+          opportunities: scanEvents(stale.events, config),
+          events: stale.events,
+          competitions: [],
+          creditsSpent,
+          quota: oddsApi.getQuota(),
+          errors: [
+            ...errors,
+            {
+              scope: "stale prices",
+              message: `Live prices could not be fetched, so these are ${minutes} minutes old. Verify anything before betting it — lines move.`,
+            },
+          ],
+          needsSetup: false,
+          ageSeconds: Math.round(stale.ageSeconds),
+          fromCache: true,
+        };
+      }
+    }
+
     // Store what was bought so the next viewer inside the window pays nothing.
     if (events.length > 0 && ttlSeconds > 0) {
       await writeCachedSlate(key, events, creditsSpent);
