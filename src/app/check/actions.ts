@@ -14,6 +14,7 @@ import {
   type BetCheck,
 } from "@/lib/engine/check-bet";
 import { adminDb, isDatabaseConfigured } from "@/lib/supabase/admin";
+import { readSlipImage, MAX_IMAGE_BYTES, ACCEPTED_TYPES } from "@/lib/providers/slip-vision";
 
 /**
  * Price a pasted bet.
@@ -67,7 +68,7 @@ async function findSettled(subject?: string) {
   if (!subject || !isDatabaseConfigured()) return null;
 
   const { data, error } = await adminDb()
-    .from("results")
+    .from("diamonds_results")
     .select("home_team, away_team, home_score, away_score, completed_at")
     .order("completed_at", { ascending: false })
     .limit(4000);
@@ -85,4 +86,51 @@ async function findSettled(subject?: string) {
     homeScore: Number(hit.home_score),
     awayScore: Number(hit.away_score),
   };
+}
+
+
+/**
+ * Price a bet from a screenshot.
+ *
+ * The image is transcribed to shorthand and then handed to `checkBetAction`,
+ * so an image and a typed slip saying the same thing take the identical code
+ * path and cannot produce different verdicts.
+ */
+export async function checkSlipImageAction(
+  formData: FormData,
+  demo = false,
+): Promise<
+  | { ok: true; check: BetCheck; transcribed: string }
+  | { ok: false; error: string }
+> {
+  try {
+    await requireViewer();
+
+    const file = formData.get("slip");
+    if (!(file instanceof File)) return { ok: false, error: "No image received." };
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      return { ok: false, error: "That image is over 5MB. A screenshot should be far smaller." };
+    }
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      return { ok: false, error: `Unsupported image type (${file.type || "unknown"}).` };
+    }
+
+    const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const transcribed = await readSlipImage(base64, file.type);
+
+    if (!transcribed) {
+      return {
+        ok: false,
+        error: "Could not read a bet in that image. Try typing it instead.",
+      };
+    }
+
+    const result = await checkBetAction(transcribed, demo);
+    if (!result.ok) return result;
+
+    return { ok: true, check: result.check, transcribed };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
 }

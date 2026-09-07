@@ -62,6 +62,8 @@ export default async function BoardPage({
         quota: { remaining: null, used: null, lastCost: null, checkedAt: null },
         errors: [],
         needsSetup: false,
+        ageSeconds: 0,
+        fromCache: false,
       }
     : await buildSlate({ sports, config: engineConfig });
 
@@ -92,8 +94,14 @@ export default async function BoardPage({
         <Stat label="Fixtures scanned" value={String(slate.events.length)} />
         <Stat label="Total at risk" value={money(staked)} />
         <Stat
-          label="Credits this refresh"
-          value={String(slate.creditsSpent)}
+          label={slate.fromCache ? "Prices age" : "Credits this refresh"}
+          value={
+            slate.fromCache
+              ? slate.ageSeconds < 60
+                ? `${slate.ageSeconds}s`
+                : `${Math.round(slate.ageSeconds / 60)}m`
+              : String(slate.creditsSpent)
+          }
           hint={
             slate.quota.remaining !== null
               ? `${slate.quota.remaining} left this month`

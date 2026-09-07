@@ -22,7 +22,14 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
-const SCHEMA = "diamonds";
+/*
+ * The tables live in `public` with a `diamonds_` prefix, not in their own
+ * schema. PostgREST serves only the schemas on the project's exposed list, and
+ * that list is enforced for EVERY role -- the service role bypasses RLS, not
+ * schema exposure. A dedicated schema would have needed a shared project
+ * setting changed, and this database belongs to another live application too.
+ */
+export const TABLE_PREFIX = "diamonds_";
 
 /**
  * The client type carries its schema as a type parameter, so a client bound to
@@ -33,7 +40,6 @@ type DiamondsClient = ReturnType<typeof createDiamondsClient>;
 
 function createDiamondsClient() {
   return createClient(required("SUPABASE_URL"), required("SUPABASE_SECRET_KEY"), {
-    db: { schema: SCHEMA },
     auth: {
       // A service client has no user session and must never try to persist or
       // refresh one; doing so would let a stray session leak across requests.
@@ -56,9 +62,10 @@ function required(name: string): string {
 let cached: DiamondsClient | null = null;
 
 /**
- * The `diamonds` schema is not exposed to the Data API, so PostgREST will not
- * serve it to `anon` or `authenticated` at all. Reaching it requires naming the
- * schema explicitly on a privileged client, which is what this does.
+ * Because the tables now sit in the exposed `public` schema, RLS is the only
+ * thing protecting them from a browser session -- it is load-bearing, not
+ * defence in depth. This client bypasses it, so every query it makes must
+ * filter by user id itself.
  */
 export function adminDb(): DiamondsClient {
   cached ??= createDiamondsClient();

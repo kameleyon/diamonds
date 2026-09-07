@@ -110,10 +110,18 @@ if you get them wrong:
 The database is **shared with a separate live application** that owns 33 tables in `public`.
 That single fact drives every decision here.
 
-**The `diamonds` schema is not exposed to the Data API.** PostgREST serves only the schemas
-listed in the project's API settings, and this is not one of them, so `anon` and `authenticated`
-cannot reach these tables through REST at all. Exposing it would be a project-wide change
-affecting the other application, so it stays closed.
+**The tables live in `public`, prefixed `diamonds_`.** They were originally in their own
+`diamonds` schema, which failed: PostgREST serves only the schemas on the project's exposed list,
+and that list is enforced for **every** role — the service role bypasses RLS, not schema
+exposure. Every query died with `PGRST106`, silently in the cache's case. Adding `diamonds` to
+the exposed list would have worked but is a shared project setting whose application restarts
+PostgREST for the other app; prefixed tables in `public` need no shared change at all.
+
+**RLS is therefore load-bearing, not defence in depth.** In an unexposed schema, invisibility was
+the outer gate. In `public` there is no outer gate, so the policies are the only thing between
+these tables and any browser holding the publishable key. The `anon` grants are also revoked, so
+a policy mistake still leaves a second barrier — verified: an anon read of `diamonds_bets`
+returns `42501`.
 
 **Signed in is not the same as allowed in.** Supabase Auth is scoped to the *project*, so users
 of the other application can obtain a perfectly valid session here. Access is an explicit

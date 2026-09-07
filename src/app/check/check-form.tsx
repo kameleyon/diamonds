@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { checkBetAction } from "./actions";
+import { checkBetAction, checkSlipImageAction } from "./actions";
 import type { BetCheck } from "@/lib/engine/check-bet";
 import { describeParsedBet } from "@/lib/parse/bet-slip";
 import { pct, signedPct } from "@/lib/display";
@@ -12,7 +12,32 @@ export function CheckForm({ demo = false }: { demo?: boolean }) {
   const [text, setText] = useState("");
   const [result, setResult] = useState<BetCheck | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
   const [pending, start] = useTransition();
+
+  /**
+   * Screenshot path. The image is transcribed to the same shorthand a person
+   * would type, then priced by the same code — so an image and typed text
+   * saying the same thing cannot disagree.
+   */
+  function handleFile(file: File | undefined | null) {
+    if (!file) return;
+    setError(null);
+    setReading(true);
+    const body = new FormData();
+    body.set("slip", file);
+    start(async () => {
+      const r = await checkSlipImageAction(body, demo);
+      setReading(false);
+      if (r.ok) {
+        setText(r.transcribed);
+        setResult(r.check);
+      } else {
+        setError(r.error);
+        setResult(null);
+      }
+    });
+  }
 
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
@@ -44,9 +69,31 @@ export function CheckForm({ demo = false }: { demo?: boolean }) {
             disabled={pending || !text.trim()}
             className="min-h-[56px] border border-chalk bg-chalk px-7 text-[14px] font-medium text-slate-ground transition-opacity disabled:opacity-40"
           >
-            {pending ? "Pricing…" : "Check it"}
+            {reading ? "Reading slip…" : pending ? "Pricing…" : "Check it"}
           </button>
         </div>
+
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleFile(e.dataTransfer.files?.[0]);
+          }}
+          className="mt-2.5 flex min-h-[46px] cursor-pointer items-center justify-center gap-2 border border-dashed border-slate-rule-strong px-4 text-[12.5px] text-bone-faint transition-colors hover:border-verdigris hover:text-bone-dim"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Drop a screenshot of the slip, or tap to choose one
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="sr-only"
+            onChange={(e) => handleFile(e.currentTarget.files?.[0])}
+          />
+        </label>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-bone-faint">
           <span>Try</span>

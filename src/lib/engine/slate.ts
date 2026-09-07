@@ -15,6 +15,7 @@ import { oddsApi, QuotaExhaustedError, type OddsApiEvent, type Region } from "..
 import { EnvMissingError } from "../env";
 import { SPORTS, type SportId } from "../sports/registry";
 import { scanEvents, DEFAULT_ENGINE_CONFIG, type EngineConfig, type Opportunity } from "./edge";
+import { cacheKey, readCachedSlate, writeCachedSlate, DEFAULT_TTL_SECONDS } from "./slate-cache";
 
 export interface SlateRequest {
   sports: SportId[];
@@ -23,6 +24,8 @@ export interface SlateRequest {
   /** Hard ceiling on credits this refresh may spend. */
   creditBudget?: number;
   config?: EngineConfig;
+  /** Seconds a cached slate stays usable. 0 forces a fresh fetch. */
+  ttlSeconds?: number;
 }
 
 export interface SlateCompetition {
@@ -42,6 +45,10 @@ export interface SlateResult {
   errors: { scope: string; message: string }[];
   /** True when no API key is configured, so the UI can route to setup. */
   needsSetup: boolean;
+  /** Seconds since these prices were fetched. 0 means this request bought them. */
+  ageSeconds: number;
+  /** True when the slate came from the shared cache and cost nothing. */
+  fromCache: boolean;
 }
 
 /**
@@ -58,7 +65,33 @@ export async function buildSlate(request: SlateRequest): Promise<SlateResult> {
     markets = ["h2h", "totals"],
     creditBudget = 40,
     config = DEFAULT_ENGINE_CONFIG,
+    ttlSeconds = DEFAULT_TTL_SECONDS,
   } = request;
+
+  /*
+   * Serve from the shared cache before spending anything.
+   *
+   * This check is what keeps the board usable on a 500/month quota: without it
+   * every page view re-bought the slate, because the client's in-memory cache
+   * does not survive between serverless invocations.
+   */
+  const key = cacheKey(sports, regions, markets);
+  if (ttlSeconds > 0) {
+    const cached = await readCachedSlate(key, ttlSeconds);
+    if (cached) {
+      return {
+        opportunities: scanEvents(cached.events, config),
+        events: cached.events,
+        competitions: [],
+        creditsSpent: 0,
+        quota: oddsApi.getQuota(),
+        errors: [],
+        needsSetup: false,
+        ageSeconds: Math.round(cached.ageSeconds),
+        fromCache: true,
+      };
+    }
+  }
 
   const errors: SlateResult["errors"] = [];
   const events: OddsApiEvent[] = [];
@@ -78,6 +111,8 @@ export async function buildSlate(request: SlateRequest): Promise<SlateResult> {
         quota: oddsApi.getQuota(),
         errors: [{ scope: "setup", message: err.message }],
         needsSetup: true,
+        ageSeconds: 0,
+        fromCache: false,
       };
     }
     return {
@@ -88,6 +123,8 @@ export async function buildSlate(request: SlateRequest): Promise<SlateResult> {
       quota: oddsApi.getQuota(),
       errors: [{ scope: "catalogue", message: (err as Error).message }],
       needsSetup: false,
+      ageSeconds: 0,
+      fromCache: false,
     };
   }
 
@@ -138,16 +175,20 @@ export async function buildSlate(request: SlateRequest): Promise<SlateResult> {
         if (err instanceof QuotaExhaustedError) {
           errors.push({ scope: "quota", message: err.message });
           // Nothing further will succeed this refresh.
-          return finish();
+          return await finish();
         }
         errors.push({ scope: comp.title, message: (err as Error).message });
       }
     }
   }
 
-  return finish();
+  return await finish();
 
-  function finish(): SlateResult {
+  async function finish(): Promise<SlateResult> {
+    // Store what was bought so the next viewer inside the window pays nothing.
+    if (events.length > 0 && ttlSeconds > 0) {
+      await writeCachedSlate(key, events, creditsSpent);
+    }
     return {
       opportunities: scanEvents(events, config),
       events,
@@ -156,6 +197,8 @@ export async function buildSlate(request: SlateRequest): Promise<SlateResult> {
       quota: oddsApi.getQuota(),
       errors,
       needsSetup: false,
+      ageSeconds: 0,
+      fromCache: false,
     };
   }
 }

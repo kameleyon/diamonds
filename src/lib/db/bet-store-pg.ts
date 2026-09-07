@@ -14,7 +14,7 @@ import "server-only";
 import { adminDb } from "../supabase/admin";
 import type { Bet, BetStatus, NewBet } from "./bet-types";
 
-const TABLE = "bets";
+const TABLE = "diamonds_bets";
 
 /** DB row shape. snake_case, as Postgres stores it. */
 interface Row {
