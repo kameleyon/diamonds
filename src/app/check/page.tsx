@@ -3,6 +3,7 @@ import { buildSlate } from "@/lib/engine/slate";
 import { DEFAULT_ENGINE_CONFIG, scanEvents } from "@/lib/engine/edge";
 import { DEMO_EVENTS } from "@/lib/fixtures/demo-slate";
 import { CheckForm } from "./check-form";
+import { EdgeList } from "@/components/edge-list";
 import { signedPct, money, timeUntil, marketLabel } from "@/lib/display";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,10 @@ export default async function CheckPage({
   );
   const best = credible[0];
   const strong = credible.filter((o) => o.ev >= 0.03).length;
-  const suspect = opportunities.length - credible.length;
+  const suspectRows = opportunities.filter(
+    (o) => !(o.confidence !== "low" && o.stake.amount > 0),
+  );
+  const suspect = suspectRows.length;
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-49px)] max-w-[1400px] flex-col px-5">
@@ -89,9 +93,10 @@ export default async function CheckPage({
         </ul>
       )}
 
-      {/* The day, in two facts. */}
-      <div className="flex flex-col border-t border-slate-rule md:flex-row">
-        <div className="border-b border-slate-rule py-6 md:w-[380px] md:border-b-0 md:border-r md:pr-8">
+      {/* Every edge, ranked. Showing one when there are fourteen answers the
+          wrong question -- the point of the board is comparison. */}
+      <div className="border-t border-slate-rule py-6">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <p className="num text-[10px] tracking-[0.18em] text-bone-faint">
             TODAY
             {stalePrices && (
@@ -100,59 +105,27 @@ export default async function CheckPage({
               </span>
             )}
           </p>
-          <div className="mt-3 flex items-baseline gap-3">
-            <span className="num text-[42px] leading-[0.9] text-bone">
-              {credible.length}
-            </span>
-            <span className="text-[13.5px] text-bone-dim">prices above fair value</span>
-          </div>
-          <p className="mt-3 max-w-[46ch] text-[12.5px] leading-relaxed text-bone-faint">
-            {credible.length === 0
-              ? "Nothing credible is out of line right now. That is the usual result, and betting nothing is the correct response to it."
-              : `${strong} clear 3% or better.`}
-            {suspect > 0 &&
-              ` ${suspect} more looked like edges but rest on thin or broken evidence — the board says which.`}
-          </p>
+          <span className="num text-[26px] leading-none text-bone">{credible.length}</span>
+          <span className="text-[13px] text-bone-dim">
+            worth acting on
+            {strong > 0 ? `, ${strong} at 3% or better` : ""}
+          </span>
+          <Link
+            href="/board"
+            className="ml-auto text-[12.5px] text-bone-faint hover:text-chalk"
+          >
+            Full board →
+          </Link>
         </div>
 
-        <div className="flex-1 py-6 md:pl-8">
-          <p className="num text-[10px] tracking-[0.18em] text-bone-faint">BEST TODAY</p>
-          {best ? (
-            <>
-              <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="num text-[28px] leading-none text-chalk">
-                  {signedPct(best.ev)}
-                </span>
-                <span className="text-[15px] text-bone">{best.selection}</span>
-                <span className="text-[12.5px] text-bone-faint">
-                  {marketLabel(best.marketKey, best.point)} · {best.sportLabel} ·{" "}
-                  <span className="num">{timeUntil(best.commenceTime)} out</span>
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="text-[12px] text-bone-dim">
-                  {best.fairSource === "pinnacle"
-                    ? "Pinnacle reference"
-                    : `${best.booksCounted} books`}
-                </span>
-                <span className="num text-[13px] text-bone">
-                  {best.bestPrice.toFixed(2)} {best.bestBookTitle}
-                </span>
-                <span className="num ml-auto text-[13px] text-bone">
-                  {money(best.stake.amount)}
-                </span>
-              </div>
-            </>
-          ) : (
-            <p className="mt-3 max-w-[52ch] text-[13px] leading-relaxed text-bone-dim">
-              {suspect > 0
-                ? `Nothing worth showing. ${suspect} price${suspect === 1 ? "" : "s"} looked mispriced but rest on a single book or a stale line — large gaps against a sharp market are broken data, not value. `
-                : "No edge to show. "}
-              <Link href="/board" className="text-chalk hover:underline">
-                Open the board
-              </Link>{" "}
-              to see what was scanned.
+        <div className="mt-4">
+          {credible.length === 0 && suspect === 0 ? (
+            <p className="max-w-[62ch] text-[13px] leading-relaxed text-bone-dim">
+              Nothing is out of line right now. That is the usual result, and betting nothing is
+              the correct response to it.
             </p>
+          ) : (
+            <EdgeList credible={credible} suspect={suspectRows} />
           )}
         </div>
       </div>
